@@ -69,8 +69,8 @@ class RulesWatcher {
   }
 
   private shouldProcessFile(filePath: string): boolean {
-    // Only process changes to Focus.md or project configuration files
-    if (filePath.endsWith('Focus.md')) return true;
+    // Only process changes to directory-structure.md or project configuration files
+    if (filePath.endsWith('directory-structure.md')) return true;
 
     const projectType = determineProjectType(this.projectPath);
     switch (projectType) {

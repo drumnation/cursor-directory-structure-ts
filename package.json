@@ -5,7 +5,7 @@
   "main": "dist/focus.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsx src/focus.ts",
+    "start": "tsx src/directory-structure.ts",
     "setup": "tsx src/setup.ts",
     "test": "tsx --test tests/*.test.ts",
     "test:watch": "tsx --test --watch tests/*.test.ts",

@@ -1,4 +1,3 @@
-// content_generator.ts
 import * as fs from 'fs';
 import * as path from 'path';
 import { DateTime } from 'luxon';
@@ -86,13 +85,8 @@ function getDirectoryStructure(
           metrics.filesWithFunctions.push([itemPath, uniqueFunctions, lineCount]);
         }
 
-        const fileInfo = resolveFileTypeInfo(item);
-        if (fileInfo) {
-          structure[item] = {
-            type: fileInfo.fileType,
-            language: fileInfo.language
-          };
-        }
+        // Just store the file as an empty object to indicate it exists
+        structure[item] = {};
       }
     }
   } catch (e) {
@@ -118,28 +112,7 @@ function structureToTree(
 
     lines.push(`${prefix}${isLast ? '└── ' : '├── '}${key}`);
 
-    if (item.type === 'file') {
-      const relPath = path.relative(projectPath, path.join(projectPath, key));
-      const limit = getFileLengthLimit(relPath);
-      const longFileAlert =
-        item.line_count > limit
-          ? `  **📄 Long-file Alert: File exceeds the recommended ${limit} lines for ${path.extname(
-              key
-            )} files (${item.line_count} lines)**`
-          : '';
-
-      lines.push(
-        `${prefix}${isLast ? '    ' : '│   '}  *${
-          item.description
-        }*${longFileAlert}`
-      );
-
-      if (item.functions && item.functions.length > 0) {
-        item.functions.forEach(([funcName, funcDesc]: [string, string]) => {
-          lines.push(`${prefix}${isLast ? '    ' : '│   '}    - \`${funcName}\``);
-        });
-      }
-    } else if (typeof item === 'object') {
+    if (typeof item === 'object' && Object.keys(item).length > 0) {
       const newPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
       lines.push(...structureToTree(item, newPrefix, projectPath));
     }
@@ -161,11 +134,6 @@ function saveDirectoryStructure(projectPath: string): void {
   const content = [
     '# Directory Structure',
     '',
-    '## Project Overview',
-    '',
-    '- Total Files: ' + metrics.totalFiles,
-    '- Total Lines: ' + metrics.totalLines.toLocaleString(),
-    '',
     '## File Tree',
     '',
     ...tree,
@@ -181,7 +149,7 @@ function saveDirectoryStructure(projectPath: string): void {
   console.log(`📝 Directory structure saved to ${outputPath}`);
 }
 
-function generateFocusContent(projectPath: string): string {
+function generateDirectoryStructureContent(projectPath: string): string {
   if (!fs.existsSync(projectPath)) {
     const error = new Error(`ENOENT: no such file or directory, stat '${projectPath}'`);
     (error as any).code = 'ENOENT';
@@ -192,19 +160,13 @@ function generateFocusContent(projectPath: string): string {
     // Save directory structure
     saveDirectoryStructure(projectPath);
 
-    // Get project info
-    const projectInfo = getProjectDescription(projectPath);
+    // Get metrics
     const metrics = new ProjectMetrics();
     const structure = getDirectoryStructure(projectPath, 3, 0, metrics);
 
     // Generate content
     const content = [
-      '# Project Focus:',
-      '',
-      `**Project Type:** ${projectInfo.type}`,
-      `**Description:** ${projectInfo.description}`,
-      `**Language:** ${projectInfo.language}`,
-      `**Framework:** ${projectInfo.framework}`,
+      '# Directory Structure:',
       '',
       '## Project Metrics:',
       '',
@@ -225,9 +187,9 @@ function generateFocusContent(projectPath: string): string {
 
     return content;
   } catch (error) {
-    console.error(`Error generating focus content: ${error}`);
+    console.error(`Error generating directory structure content: ${error}`);
     throw error;
   }
 }
 
-export { generateFocusContent, ProjectMetrics };
+export { generateDirectoryStructureContent, ProjectMetrics };

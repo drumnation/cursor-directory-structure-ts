@@ -1,9 +1,9 @@
-// focus.ts
+// directory-structure.ts
 import * as fs from 'fs';
 import * as path from 'path';
 import { DateTime } from 'luxon';
 import { loadConfig, UPDATE_INTERVAL } from './config';
-import { generateFocusContent } from './content-generator';
+import { generateDirectoryStructureContent } from './content-generator';
 import { RulesAnalyzer } from './rules-analyzer';
 import { RulesGenerator } from './rules-generator';
 import { ProjectWatcherManager } from './rules-watcher';
@@ -103,18 +103,18 @@ function getDefaultConfig(): any {
   };
 }
 
-function setupCursorFocus(projectPath: string, projectName: string): void {
+function setupDirectoryStructure(projectPath: string, projectName: string): void {
   const rulesGenerator = new RulesGenerator(projectPath);
   const rulesAnalyzer = new RulesAnalyzer(projectPath);
 
   const projectInfo = rulesAnalyzer.analyzeProjectForRules();
   rulesGenerator.generateRules();
 
-  // Generate content but only save directory structure
-  generateFocusContent(projectPath);
+  // Generate content and save directory structure
+  generateDirectoryStructureContent(projectPath);
 
   console.log(
-    `✅ [${projectName}] Project analysis completed at ${DateTime.now().toFormat(
+    `✅ [${projectName}] Directory structure analysis completed at ${DateTime.now().toFormat(
       'yyyy-MM-dd HH:mm:ss'
     )}`
   );
@@ -133,17 +133,17 @@ function monitorProject(project: ProjectConfig, config: any): void {
 
   setInterval(() => {
     try {
-      // Generate content but only save directory structure
-      generateFocusContent(projectPath);
+      // Generate content and save directory structure
+      generateDirectoryStructureContent(projectPath);
 
       console.log(
-        `📝 [${projectName}] Project analysis updated at ${DateTime.now().toFormat(
+        `📝 [${projectName}] Directory structure updated at ${DateTime.now().toFormat(
           'yyyy-MM-dd HH:mm:ss'
         )}`
       );
     } catch (error) {
       console.error(
-        `❌ [${projectName}] Error updating project analysis: ${error}`
+        `❌ [${projectName}] Error updating directory structure: ${error}`
       );
     }
   }, updateInterval * 1000);
@@ -174,7 +174,7 @@ async function main(): Promise<void> {
       const absolutePath = path.resolve(project.project_path);
       
       if (fs.existsSync(absolutePath)) {
-        setupCursorFocus(absolutePath, project.name);
+        setupDirectoryStructure(absolutePath, project.name);
         manager.addProject(absolutePath);
         manager.setAutoUpdate(project.name, true);
       } else {

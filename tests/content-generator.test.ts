@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import path from 'node:path';
 import fs from 'node:fs';
-import { ProjectMetrics, generateFocusContent } from '../src/content-generator';
+import { ProjectMetrics, generateDirectoryStructureContent } from '../src/content-generator';
 
 const TEST_DIR = path.join(__dirname, 'test-project');
 
@@ -66,16 +66,16 @@ describe('ProjectMetrics', () => {
   });
 });
 
-describe('generateFocusContent', () => {
+describe('generateDirectoryStructureContent', () => {
   test('setup', () => {
     createTestProject();
   });
 
-  test('should generate focus content for test project', () => {
-    const result = generateFocusContent(TEST_DIR);
-    assert.ok(result.includes('# Project Focus:'));
-    assert.ok(result.includes('**Project Type:**'));
-    assert.ok(result.includes('**Description:**'));
+  test('should generate directory structure content for test project', () => {
+    const result = generateDirectoryStructureContent(TEST_DIR);
+    assert.ok(result.includes('# Directory Structure:'));
+    assert.ok(result.includes('## Project Metrics:'));
+    assert.ok(result.includes('**Files:**'));
     assert.ok(result.includes('test.ts'));
     assert.ok(result.includes('testFunction'));
   });
@@ -83,15 +83,15 @@ describe('generateFocusContent', () => {
   test('should handle empty directories', () => {
     const emptyDir = path.join(TEST_DIR, 'empty');
     fs.mkdirSync(emptyDir, { recursive: true });
-    const result = generateFocusContent(emptyDir);
-    assert.ok(result.includes('# Project Focus:'));
+    const result = generateDirectoryStructureContent(emptyDir);
+    assert.ok(result.includes('# Directory Structure:'));
     assert.ok(result.includes('**Files:** 0'));
   });
 
   test('should handle invalid paths', () => {
     const nonexistentPath = path.join(TEST_DIR, 'nonexistent');
     try {
-      generateFocusContent(nonexistentPath);
+      generateDirectoryStructureContent(nonexistentPath);
       assert.fail('Expected error for nonexistent path');
     } catch (error) {
       assert.ok(error instanceof Error);
