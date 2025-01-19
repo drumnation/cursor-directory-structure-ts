@@ -8,10 +8,11 @@ import {
   isBinaryFile,
 } from './analyzers';
 import {
-  detectProjectType,
-  getProjectDescription,
-  getFileTypeInfo,
-} from './project-detector';
+  determineProjectType,
+  resolveFileTypeInfo,
+  identifyMainLanguage,
+  getProjectDescription
+} from './project-identifier';
 import {
   getFileLengthLimit,
   CODE_EXTENSIONS,
@@ -85,13 +86,13 @@ function getDirectoryStructure(
           metrics.filesWithFunctions.push([itemPath, uniqueFunctions, lineCount]);
         }
 
-        const { fileType, language } = getFileTypeInfo(item);
-        structure[item] = {
-          type: 'file',
-          line_count: lineCount,
-          description: language,
-          functions: functions,
-        };
+        const fileInfo = resolveFileTypeInfo(item);
+        if (fileInfo) {
+          structure[item] = {
+            type: fileInfo.fileType,
+            language: fileInfo.language
+          };
+        }
       }
     }
   } catch (e) {
@@ -189,7 +190,7 @@ function generateFocusContent(projectPath: string): string {
   saveDirectoryStructure(projectPath);
 
   const projectName = path.basename(projectPath);
-  const projectType = detectProjectType(projectPath);
+  const projectType = determineProjectType(projectPath);
   const projectInfo = getProjectDescription(projectPath);
   const metrics = new ProjectMetrics();
 

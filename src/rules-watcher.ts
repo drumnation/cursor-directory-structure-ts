@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { FSWatcher, watch } from 'chokidar';
 import { RulesGenerator } from './rules-generator';
-import { detectProjectType } from './project-detector';
+import { determineProjectType } from './project-identifier';
 
 class RulesWatcher {
   private projectPath: string;
@@ -72,9 +72,11 @@ class RulesWatcher {
     // Only process changes to Focus.md or project configuration files
     if (filePath.endsWith('Focus.md')) return true;
 
-    const projectType = detectProjectType(this.projectPath);
+    const projectType = determineProjectType(this.projectPath);
     switch (projectType) {
       case 'javascript':
+        return filePath.endsWith('package.json');
+      case 'typescript':
         return filePath.endsWith('package.json');
       case 'python':
         return filePath.endsWith('setup.py') || filePath.endsWith('requirements.txt');

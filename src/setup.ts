@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { scanForProjects, detectProjectType, ProjectInfo } from './project-detector';
+import { scanForProjects, determineProjectType, ProjectInfo } from './project-identifier';
 import { ProjectWatcherManager } from './rules-watcher';
 
 const CONFIG_FILE = 'config.json';
@@ -227,7 +227,7 @@ async function addNewProject(): Promise<void> {
   config.projects.push({
     name,
     project_path: projectPath,
-    type: type || detectProjectType(projectPath),
+    type: type || determineProjectType(projectPath),
     watch: true,
   });
   manager.addProject(projectPath);

@@ -2,7 +2,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import path from 'node:path';
 import fs from 'node:fs';
-import { detectProjectType, getFileTypeInfo, getProjectDescription } from '../src/project-detector';
+import { determineProjectType, resolveFileTypeInfo, getProjectDescription } from '../src/project-identifier';
+import { ProjectInfo } from '../src/types';
 
 const TEST_DIR = path.join(__dirname, 'test-project');
 
@@ -41,25 +42,25 @@ function cleanupTestProjects() {
   }
 }
 
-describe('detectProjectType', () => {
+describe('determineProjectType', () => {
   test('setup', () => {
     createTestProjects();
   });
 
   test('should detect Node.js project', () => {
-    const result = detectProjectType(path.join(TEST_DIR, 'node'));
+    const result = determineProjectType(path.join(TEST_DIR, 'node'));
     assert.strictEqual(result, 'javascript');
   });
 
   test('should detect Python project', () => {
-    const result = detectProjectType(path.join(TEST_DIR, 'python'));
+    const result = determineProjectType(path.join(TEST_DIR, 'python'));
     assert.strictEqual(result, 'python');
   });
 
-  test('should handle unknown project type', () => {
+  test('should handle empty directory', () => {
     const emptyDir = path.join(TEST_DIR, 'empty');
     fs.mkdirSync(emptyDir, { recursive: true });
-    const result = detectProjectType(emptyDir);
+    const result = determineProjectType(emptyDir);
     assert.strictEqual(result, 'generic');
   });
 
@@ -68,24 +69,24 @@ describe('detectProjectType', () => {
   });
 });
 
-describe('getFileTypeInfo', () => {
+describe('resolveFileTypeInfo', () => {
   test('should detect TypeScript files', () => {
-    const result = getFileTypeInfo('test.ts');
+    const result = resolveFileTypeInfo('test.ts');
     assert.deepStrictEqual(result, { fileType: 'code', language: 'typescript' });
   });
 
   test('should detect JavaScript files', () => {
-    const result = getFileTypeInfo('test.js');
+    const result = resolveFileTypeInfo('test.js');
     assert.deepStrictEqual(result, { fileType: 'code', language: 'javascript' });
   });
 
   test('should detect Python files', () => {
-    const result = getFileTypeInfo('test.py');
+    const result = resolveFileTypeInfo('test.py');
     assert.deepStrictEqual(result, { fileType: 'code', language: 'python' });
   });
 
   test('should handle unknown file types', () => {
-    const result = getFileTypeInfo('test.xyz');
+    const result = resolveFileTypeInfo('test.xyz');
     assert.deepStrictEqual(result, { fileType: 'unknown', language: 'unknown' });
   });
 });
@@ -95,10 +96,16 @@ describe('getProjectDescription', () => {
     createTestProjects();
   });
 
-  test('should get Node.js project description', () => {
+  test('should return project info for Node.js project', () => {
     const result = getProjectDescription(path.join(TEST_DIR, 'node'));
-    assert.ok(result.description.includes('JavaScript'));
-    assert.ok(result.name === 'test-project');
+    const expected: ProjectInfo = {
+      name: 'node',
+      version: '1.0.0',
+      language: 'javascript',
+      framework: 'unknown',
+      type: 'javascript'
+    };
+    assert.deepStrictEqual(result, expected);
   });
 
   test('should get Python project description', () => {
