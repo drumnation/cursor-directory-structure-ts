@@ -1,0 +1,10 @@
+{
+  "projects": [
+    {
+      "name": "cursor-focus-ts",
+      "project_path": ".",
+      "type": "typescript",
+      "watch": true
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "cursor-focus-ts",
+  "version": "1.0.0",
+  "description": "A TypeScript version of CursorFocus",
+  "main": "dist/focus.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/focus.ts",
+    "setup": "tsx src/setup.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "test:watch": "tsx --test --watch tests/*.test.ts",
+    "test:coverage": "tsx --test --experimental-test-coverage tests/*.test.ts"
+  },
+  "keywords": [
+    "cursor",
+    "focus",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/luxon": "^3.4.2",
+    "@types/node": "^20.11.16",
+    "@types/unzipper": "^0.10.9",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "dotenv": "^16.4.1",
+    "luxon": "^3.4.4",
+    "unzipper": "^0.10.14"
+  }
+}
