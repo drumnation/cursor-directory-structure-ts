@@ -3,6 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { FileLengthStandards } from './types';
 
+// Default update interval in seconds
+export const UPDATE_INTERVAL = 60;
+
 // Function patterns for different languages
 export const FUNCTION_PATTERNS: { [key: string]: string } = {
   ts: 'function\\s+([a-zA-Z_$][\\w$]*)\\s*\\(',

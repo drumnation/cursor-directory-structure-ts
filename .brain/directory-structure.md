@@ -3,41 +3,55 @@
 ## Project Overview
 
 - Total Files: 14
-- Total Lines: 4,576
+- Total Lines: 3,579
 
 ## File Tree
 
 ├── src
 │   ├── analyzers.ts
-│   │     *TypeScript*
+│   │   ├── language
+│   │   └── type
 │   ├── auto-updater.ts
-│   │     *TypeScript*
+│   │   ├── language
+│   │   └── type
 │   ├── config.ts
-│   │     *TypeScript*
+│   │   ├── language
+│   │   └── type
 │   ├── content-generator.ts
-│   │     *TypeScript*
+│   │   ├── language
+│   │   └── type
 │   ├── focus.ts
-│   │     *TypeScript*
-│   ├── project-detector.ts
-│   │     *TypeScript*  **📄 Long-file Alert: File exceeds the recommended 300 lines for .ts files (994 lines)**
+│   │   ├── language
+│   │   └── type
+│   ├── project-identifier.ts
+│   │   ├── language
+│   │   └── type
 │   ├── rules-analyzer.ts
-│   │     *TypeScript*  **📄 Long-file Alert: File exceeds the recommended 300 lines for .ts files (405 lines)**
+│   │   ├── language
+│   │   └── type
 │   ├── rules-generator.ts
-│   │     *TypeScript*  **📄 Long-file Alert: File exceeds the recommended 300 lines for .ts files (1183 lines)**
+│   │   ├── language
+│   │   └── type
 │   ├── rules-watcher.ts
-│   │     *TypeScript*
+│   │   ├── language
+│   │   └── type
 │   ├── setup.ts
-│   │     *TypeScript*
+│   │   ├── language
+│   │   └── type
 │   └── types.ts
-│         *TypeScript*
+│       ├── language
+│       └── type
 └── tests
     ├── analyzers.test.ts
-    │     *TypeScript*
+    │   ├── language
+    │   └── type
     ├── content-generator.test.ts
-    │     *TypeScript*
-    └── project-detector.test.ts
-          *TypeScript*
+    │   ├── language
+    │   └── type
+    └── project-identifier.test.ts
+        ├── language
+        └── type
 
 ### Last Updated
 
-January 18, 2025 at 11:47 PM
+January 19, 2025 at 12:08 AM

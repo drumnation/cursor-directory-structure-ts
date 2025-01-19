@@ -110,12 +110,11 @@ function setupCursorFocus(projectPath: string, projectName: string): void {
   const projectInfo = rulesAnalyzer.analyzeProjectForRules();
   rulesGenerator.generateRules();
 
-  const focusContent = generateFocusContent(projectPath);
-  const focusFilePath = path.join(projectPath, 'Focus.md');
-  fs.writeFileSync(focusFilePath, focusContent);
+  // Generate content but only save directory structure
+  generateFocusContent(projectPath);
 
   console.log(
-    `✅ [${projectName}] Focus.md generated at ${DateTime.now().toFormat(
+    `✅ [${projectName}] Project analysis completed at ${DateTime.now().toFormat(
       'yyyy-MM-dd HH:mm:ss'
     )}`
   );
@@ -134,18 +133,17 @@ function monitorProject(project: ProjectConfig, config: any): void {
 
   setInterval(() => {
     try {
-      const focusContent = generateFocusContent(projectPath);
-      const focusFilePath = path.join(projectPath, 'Focus.md');
-      fs.writeFileSync(focusFilePath, focusContent);
+      // Generate content but only save directory structure
+      generateFocusContent(projectPath);
 
       console.log(
-        `📝 [${projectName}] Focus.md updated at ${DateTime.now().toFormat(
+        `📝 [${projectName}] Project analysis updated at ${DateTime.now().toFormat(
           'yyyy-MM-dd HH:mm:ss'
         )}`
       );
     } catch (error) {
       console.error(
-        `❌ [${projectName}] Error updating Focus.md: ${error}`
+        `❌ [${projectName}] Error updating project analysis: ${error}`
       );
     }
   }, updateInterval * 1000);
