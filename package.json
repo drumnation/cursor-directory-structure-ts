@@ -1,7 +1,7 @@
 {
-  "name": "directory-structure-ts",
+  "name": "cursor-directory-structure-ts",
   "version": "1.0.0",
-  "description": "CursorDirectoryStructure",
+  "description": "A TypeScript tool for monitoring and analyzing project directory structures, with a focus on Cursor IDE integration",
   "main": "dist/directory-structure.js",
   "scripts": {
     "build": "tsc",
@@ -13,10 +13,13 @@
   },
   "keywords": [
     "cursor",
-    "focus",
-    "typescript"
+    "directory",
+    "structure",
+    "typescript",
+    "analysis",
+    "monitoring"
   ],
-  "author": "",
+  "author": "drumnation",
   "license": "ISC",
   "devDependencies": {
     "@types/luxon": "^3.4.2",
