@@ -183,79 +183,51 @@ function saveDirectoryStructure(projectPath: string): void {
 
 function generateFocusContent(projectPath: string): string {
   if (!fs.existsSync(projectPath)) {
-    throw new Error(`Directory does not exist: ${projectPath}`);
+    const error = new Error(`ENOENT: no such file or directory, stat '${projectPath}'`);
+    (error as any).code = 'ENOENT';
+    throw error;
   }
 
-  // Save directory structure first
-  saveDirectoryStructure(projectPath);
+  try {
+    // Save directory structure
+    saveDirectoryStructure(projectPath);
 
-  const projectName = path.basename(projectPath);
-  const projectType = determineProjectType(projectPath);
-  const projectInfo = getProjectDescription(projectPath);
-  const metrics = new ProjectMetrics();
+    // Get project info
+    const projectInfo = getProjectDescription(projectPath);
+    const metrics = new ProjectMetrics();
+    const structure = getDirectoryStructure(projectPath, 3, 0, metrics);
 
-  const structure = getDirectoryStructure(
-    projectPath,
-    3,
-    0,
-    metrics
-  );
-  const tree = structureToTree(structure, '', projectPath);
+    // Generate content
+    const content = [
+      '# Project Focus:',
+      '',
+      `**Project Type:** ${projectInfo.type}`,
+      `**Description:** ${projectInfo.description}`,
+      `**Language:** ${projectInfo.language}`,
+      `**Framework:** ${projectInfo.framework}`,
+      '',
+      '## Project Metrics:',
+      '',
+      `**Files:** ${metrics.totalFiles}`,
+      `**Total Lines:** ${metrics.totalLines}`,
+      '',
+      '## File Types:',
+      ...Object.entries(metrics.filesByType).map(([ext, count]) => 
+        `- ${ext}: ${count} files, ${metrics.linesByType[ext]} lines`
+      ),
+      '',
+      '## Functions:',
+      ...metrics.filesWithFunctions.map(([file, functions]) => [
+        `### ${path.relative(projectPath, file)}:`,
+        ...functions.map(([name]) => `- ${name}`)
+      ]).flat(),
+    ].join('\n');
 
-  const content: string[] = [
-    `# Project Focus: ${projectName}`,
-    '',
-    `**Project Type:** ${projectType}`,
-    `**Description:** ${projectInfo.description}`,
-    '',
-    '## Project Structure',
-    '',
-    ...tree,
-    '',
-    '## File Analysis',
-  ];
-
-  metrics.filesWithFunctions.sort((a, b) =>
-    path.basename(a[0]).localeCompare(path.basename(b[0]))
-  );
-
-  for (const [filePath, functions, lineCount] of metrics.filesWithFunctions) {
-    const relPath = path.relative(projectPath, filePath);
-    const filteredFunctions = functions
-      .filter(
-        ([func]) =>
-          !func.startsWith('__') &&
-          !['set', 'get', 'items', 'exists', 'enumerate', 'input', 'int', 'next', 'detection', 'names', 'walk', 'endswith'].includes(func)
-      )
-      .map(([func]) => func)
-      .sort();
-
-    if (filteredFunctions.length > 0) {
-      content.push(
-        '',
-        `\`${relPath}\` (${lineCount} lines)`,
-        'Functions:',
-        ...filteredFunctions.map((func) => `- ${func}`)
-      );
-    }
+    return content;
+  } catch (error) {
+    console.error(`Error generating focus content: ${error}`);
+    throw error;
   }
-
-  const fileDist = Object.entries(metrics.filesByType)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([ext, count]) => `- ${ext}: ${count} files (${metrics.linesByType[ext].toLocaleString()} lines)`);
-
-  content.push(
-    '',
-    '# 📊 Project Overview',
-    `**Files:** ${metrics.totalFiles}  |  **Lines:** ${metrics.totalLines.toLocaleString()}`,
-    '',
-    '## 📁 File Distribution',
-    ...fileDist,
-    '',
-    `*Updated: ${DateTime.now().toFormat('MMMM dd, yyyy \'at\' h:mm a')}*`
-  );
-
-  return content.join('\n');
 }
 
 export { generateFocusContent, ProjectMetrics };

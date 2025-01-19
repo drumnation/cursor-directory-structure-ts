@@ -34,6 +34,11 @@ function shouldIgnoreFile(filePath: string): boolean {
   const fileName = path.basename(filePath);
   const dirPath = path.dirname(filePath);
 
+  // Check if the path itself is in ignored_directories
+  if (IGNORED_DIRECTORIES.has(fileName)) {
+    return true;
+  }
+
   // Check if file matches any ignored_files pattern
   for (const pattern of IGNORED_FILES) {
     // Convert glob pattern to regex
@@ -45,8 +50,10 @@ function shouldIgnoreFile(filePath: string): boolean {
 
   // Check if any parent directory matches ignored_directories
   const dirParts = dirPath.split(path.sep);
-  if (dirParts.some(part => IGNORED_DIRECTORIES.has(part))) {
-    return true;
+  for (const part of dirParts) {
+    if (IGNORED_DIRECTORIES.has(part)) {
+      return true;
+    }
   }
 
   // Check if file is hidden (starts with .)
@@ -66,17 +73,14 @@ function analyzeFileContent(filePath: string): [Array<[string, string]>, number]
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n');
     const functions: Array<[string, string]> = [];
-    const ext = path.extname(filePath).toLowerCase();
+    const ext = path.extname(filePath).slice(1).toLowerCase(); // Remove the dot and convert to lowercase
 
     // Get language-specific function patterns
-    const patterns = Object.entries(FUNCTION_PATTERNS)
-      .filter(([key]) => key.includes(ext.slice(1)))
-      .map(([_, pattern]) => new RegExp(pattern, 'g'));
-
-    // Find functions
-    for (const pattern of patterns) {
+    const pattern = FUNCTION_PATTERNS[ext];
+    if (pattern) {
+      const regex = new RegExp(pattern, 'g');
       let match;
-      while ((match = pattern.exec(content)) !== null) {
+      while ((match = regex.exec(content)) !== null) {
         if (match[1] && !IGNORED_KEYWORDS.has(match[1])) {
           functions.push([match[1], match[0]]);
         }

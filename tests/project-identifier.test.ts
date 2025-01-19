@@ -103,23 +103,38 @@ describe('getProjectDescription', () => {
       version: '1.0.0',
       language: 'javascript',
       framework: 'unknown',
-      type: 'javascript'
+      type: 'javascript',
+      description: 'javascript project'
     };
     assert.deepStrictEqual(result, expected);
   });
 
   test('should get Python project description', () => {
     const result = getProjectDescription(path.join(TEST_DIR, 'python'));
-    assert.ok(result.description.includes('Python'));
-    assert.ok(result.name === 'python');
+    const expected: ProjectInfo = {
+      name: 'python',
+      version: '1.0.0',
+      language: 'python',
+      framework: 'unknown',
+      type: 'python',
+      description: 'python project'
+    };
+    assert.deepStrictEqual(result, expected);
   });
 
   test('should handle unknown project type', () => {
     const emptyDir = path.join(TEST_DIR, 'empty');
     fs.mkdirSync(emptyDir, { recursive: true });
     const result = getProjectDescription(emptyDir);
-    assert.ok(result.description.includes('generic'));
-    assert.ok(result.name === 'empty');
+    const expected: ProjectInfo = {
+      name: 'empty',
+      version: '1.0.0',
+      language: 'unknown',
+      framework: 'unknown',
+      type: 'generic',
+      description: 'unknown project'
+    };
+    assert.deepStrictEqual(result, expected);
   });
 
   test('cleanup', () => {

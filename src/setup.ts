@@ -170,16 +170,16 @@ async function scanDirectory(): Promise<void> {
   for (const index of selectedProjects) {
     const project = projects[index];
     const existingProject = config.projects.find(
-      (p: any) => p.project_path === project.path
+      (p: any) => p.project_path === project.project_path
     );
     if (!existingProject) {
       config.projects.push({
         name: project.name,
-        project_path: project.path,
+        project_path: project.project_path || path.join(directory, project.name),
         type: project.type,
         watch: true,
       });
-      manager.addProject(project.path);
+      manager.addProject(project.project_path || path.join(directory, project.name));
       manager.setAutoUpdate(project.name, true);
     }
   }

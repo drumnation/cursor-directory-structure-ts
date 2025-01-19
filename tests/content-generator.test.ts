@@ -7,10 +7,13 @@ import { ProjectMetrics, generateFocusContent } from '../src/content-generator';
 const TEST_DIR = path.join(__dirname, 'test-project');
 
 function createTestProject() {
-  // Create test directory if it doesn't exist
-  if (!fs.existsSync(TEST_DIR)) {
-    fs.mkdirSync(TEST_DIR, { recursive: true });
+  // Clean up any existing test directory
+  if (fs.existsSync(TEST_DIR)) {
+    fs.rmSync(TEST_DIR, { recursive: true, force: true });
   }
+
+  // Create test directory
+  fs.mkdirSync(TEST_DIR, { recursive: true });
 
   // Create test files
   fs.writeFileSync(path.join(TEST_DIR, 'test.ts'), `
@@ -39,7 +42,11 @@ function createTestProject() {
     name: 'test-project',
     version: '1.0.0',
     description: 'A test project'
-  }));
+  }, null, 2));
+
+  // Create empty directory for empty directory test
+  const emptyDir = path.join(TEST_DIR, 'empty');
+  fs.mkdirSync(emptyDir, { recursive: true });
 }
 
 function cleanupTestProject() {

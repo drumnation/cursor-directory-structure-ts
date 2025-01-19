@@ -5,6 +5,8 @@ interface ProjectInfo {
   language: string;
   framework: string;
   type: string;
+  description?: string;
+  project_path?: string;
 }
 
 interface FileLengthStandards {
