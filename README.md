@@ -17,21 +17,21 @@ A TypeScript tool for monitoring and analyzing project directory structures, wit
 ### Directory Structure Documentation
 
 The tool automatically maintains a `directory-structure.md` file in the `.brain` folder of each monitored project. This file contains:
-- A detailed map of your project's structure
-- File and directory descriptions
-- Key architectural insights
-- Important dependency relationships
+- A complete map of your project's structure
+- Key files and directories
+- Project organization overview
 
 Example `.brain/directory-structure.md`:
 ```markdown
 # Project Structure
-📁 src/
-  └─ components/
-     ├─ auth/         # Authentication related components
-     └─ dashboard/    # Main dashboard interface
-  └─ utils/          # Shared utility functions
-  └─ types/          # TypeScript type definitions
-...
+📁 root/
+  ├─ src/
+  │  ├─ components/
+  │  ├─ utils/
+  │  └─ types/
+  ├─ tests/
+  ├─ package.json
+  └─ tsconfig.json
 ```
 
 ### Cursor Agent Integration
