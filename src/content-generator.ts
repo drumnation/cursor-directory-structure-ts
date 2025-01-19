@@ -1,8 +1,22 @@
+// Test file watcher - second Gemini test
+// Test file watcher - testing Gemini integration
+// Test file watcher - testing Gemini integration
+// Test file watcher - sixth change (final test)
+// Test file watcher - fifth change (testing both updates)
+// Test file watcher - fourth change (after watcher update)
+// Test file watcher - third change
+// Test file watcher - second change
+// Test file watcher
+// Testing new tree format with inline descriptions
+// Testing fixed Gemini format
+// Testing directory structure generation without rules
+// Testing updated Gemini prompt for tree descriptions
 import * as fs from 'fs';
 import * as path from 'path';
 import { DateTime } from 'luxon';
 import { CODE_EXTENSIONS } from './config';
 import { analyzeFileContent } from './analyzers';
+import { GeminiService } from './gemini-service';
 
 const IGNORED_DIRECTORIES = new Set([
   'node_modules',
@@ -174,32 +188,172 @@ function saveDirectoryStructure(projectPath: string, structure: any, metrics: Pr
   fs.writeFileSync(filePath, content + '\n', 'utf-8');
 }
 
-function generateDirectoryStructureContent(projectPath: string): void {
+async function generateDirectoryStructureContent(projectPath: string): Promise<string> {
+  const metrics = new ProjectMetrics();
+  scanForMetrics(projectPath, metrics);
+
+  // Get folder descriptions using Gemini
+  const geminiService = new GeminiService();
+  let descriptions: { [key: string]: string } = {};
+  let functionDescriptions: { [key: string]: string } = {};
   try {
-    // Create .brain directory if it doesn't exist
-    const brainDir = path.join(projectPath, '.brain');
-    if (!fs.existsSync(brainDir)) {
-      fs.mkdirSync(brainDir, { recursive: true });
-    }
-
-    // Initialize metrics
-    const metrics = new ProjectMetrics();
-
-    // Get directory structure with defensive scanning
     const structure = getDirectoryStructure(projectPath, 3);
+    const treeLines = structureToTree(structure, '', projectPath);
+    console.log('Generated tree structure with', treeLines.length, 'lines');
+    
+    const prompt = `Given this project tree structure and list of functions, provide:
+1. Brief descriptions (max 60 chars) for each file and folder in the format "path: description"
+2. Brief descriptions for each function in the format "function_name: description"
 
-    // Scan for metrics separately
-    scanForMetrics(projectPath, metrics);
+Project structure:
+${treeLines.join('\n')}
 
-    // Save directory structure with error handling
-    try {
-      saveDirectoryStructure(projectPath, structure, metrics);
-    } catch (error) {
-      console.warn(`Warning: Could not save directory structure: ${error}`);
+Functions:
+${metrics.filesWithFunctions.map(([file, functions]) => 
+  functions.map(([name]) => name).join('\n')
+).join('\n')}`;
+    
+    const response = await geminiService.generateContent(prompt);
+    console.log('\nRaw Gemini Response:\n', response, '\n');
+    
+    // Parse line by line responses into descriptions map
+    console.log('Parsing Gemini response into descriptions...');
+    const sections = response.split(/^###?\s+/m);
+    
+    sections.forEach(section => {
+      const lines = section.trim().split('\n');
+      const sectionTitle = lines[0]?.toLowerCase() || '';
+      
+      if (sectionTitle.includes('file') || sectionTitle.includes('folder')) {
+        lines.slice(1).forEach(line => {
+          const match = line.match(/^[-\s]*([^:]+):\s*(.+)$/);
+          if (match) {
+            const [_, path, description] = match;
+            const cleanPath = path.replace(/^[-├└│\s]+/, '').trim();
+            console.log(`Adding file/folder description for ${cleanPath}: ${description.trim()}`);
+            descriptions[cleanPath] = description.trim();
+          }
+        });
+      } else if (sectionTitle.includes('function')) {
+        lines.slice(1).forEach(line => {
+          const match = line.match(/^[-\s]*([^:]+):\s*(.+)$/);
+          if (match) {
+            const [_, name, description] = match;
+            const cleanName = name.trim();
+            console.log(`Adding function description for ${cleanName}: ${description.trim()}`);
+            functionDescriptions[cleanName] = description.trim();
+          }
+        });
+      }
+    });
+
+    // If we got no descriptions, try parsing line by line as a fallback
+    if (Object.keys(descriptions).length === 0 && Object.keys(functionDescriptions).length === 0) {
+      console.log('No descriptions found in sections, trying line by line parsing...');
+      response.split('\n').forEach(line => {
+        const match = line.match(/^[-\s]*([^:]+):\s*(.+)$/);
+        if (match) {
+          const [_, path, description] = match;
+          const cleanPath = path.replace(/^[-├└│\s]+/, '').trim();
+          
+          if (metrics.filesWithFunctions.some(([_, functions]) => 
+            functions.some(([name]) => name === cleanPath))) {
+            console.log(`Adding function description for ${cleanPath}: ${description.trim()}`);
+            functionDescriptions[cleanPath] = description.trim();
+          } else {
+            console.log(`Adding file/folder description for ${cleanPath}: ${description.trim()}`);
+            descriptions[cleanPath] = description.trim();
+          }
+        }
+      });
     }
+
+    console.log('\nFinal descriptions map:', descriptions);
+    console.log('Final function descriptions map:', functionDescriptions);
   } catch (error) {
-    console.warn(`Warning: Error generating directory structure content: ${error}`);
+    console.warn(`Warning: Could not generate descriptions: ${error}`);
   }
+
+  // Generate tree structure with descriptions
+  const structure = getDirectoryStructure(projectPath, 3);
+  const treeLines = generateTreeWithDescriptions(structure, '', projectPath, descriptions);
+  console.log('\nGenerated tree lines with descriptions:', treeLines.slice(0, 5), '...');
+
+  const content = [
+    '# Directory Structure\n',
+    '## Project Metrics\n',
+    `**Files**: ${metrics.totalFiles}`,
+    `**Total Lines**: ${metrics.totalLines}\n`,
+    '## File Types\n',
+    ...Object.entries(metrics.filesByType)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([type, count]) => `- ${type}: ${count} files, ${metrics.linesByType[type]} lines`),
+    '\n## Project Tree\n',
+    '```',
+    ...treeLines,
+    '```\n',
+    '\n## Functions\n',
+    ...metrics.filesWithFunctions
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([file, functions]) => [
+        `\n### ${path.relative(projectPath, file)}\n`,
+        ...functions.map(([name]) => {
+          const description = functionDescriptions[name] || '';
+          return `- ${name}${description ? `    # ${description}` : ''}`;
+        }),
+      ])
+      .flat(),
+  ].join('\n');
+
+  const brainDir = path.join(projectPath, '.brain');
+  if (!fs.existsSync(brainDir)) {
+    fs.mkdirSync(brainDir, { recursive: true });
+  }
+
+  const filePath = path.join(brainDir, 'directory-structure.md');
+  console.log('\nWriting content to:', filePath);
+  console.log('Content preview (first 500 chars):', content.substring(0, 500));
+  
+  fs.writeFileSync(filePath, content);
+  return content;
+}
+
+function generateTreeWithDescriptions(
+  structure: { [key: string]: any },
+  prefix: string = '',
+  projectPath: string,
+  descriptions: { [key: string]: string },
+  currentPath: string = ''
+): string[] {
+  const lines: string[] = [];
+  const keys = Object.keys(structure).sort();
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const item = structure[key];
+    const isLast = i === keys.length - 1;
+    const relativePath = currentPath ? `${currentPath}/${key}` : key;
+    const description = descriptions[relativePath] || descriptions[key] || '';
+    
+    console.log(`Processing ${key}:`, {
+      relativePath,
+      hasDescription: !!description,
+      description
+    });
+
+    // Add description as a comment if it exists, with more padding
+    const descriptionComment = description ? `    # ${description}` : '';
+    const line = `${prefix}${isLast ? '└── ' : '├── '}${key}${descriptionComment}`;
+    console.log('Generated line:', line);
+    lines.push(line);
+
+    if (typeof item === 'object' && Object.keys(item).length > 0) {
+      const newPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+      lines.push(...generateTreeWithDescriptions(item, newPrefix, projectPath, descriptions, relativePath));
+    }
+  }
+
+  return lines;
 }
 
 function scanForMetrics(projectPath: string, metrics: ProjectMetrics, maxDepth: number = 3): void {
@@ -210,11 +364,12 @@ function scanForMetrics(projectPath: string, metrics: ProjectMetrics, maxDepth: 
   try {
     const items = fs.readdirSync(projectPath);
     for (const item of items) {
-      const fullPath = path.join(projectPath, item);
-
+      // Skip ignored directories early before any fs operations
       if (shouldIgnoreDirectory(item)) {
         continue;
       }
+
+      const fullPath = path.join(projectPath, item);
 
       try {
         const stats = fs.statSync(fullPath);
@@ -237,16 +392,23 @@ function scanForMetrics(projectPath: string, metrics: ProjectMetrics, maxDepth: 
                 metrics.filesWithFunctions.push([fullPath, uniqueFunctions, lineCount]);
               }
             } catch (error) {
+              // Log warning but continue processing other files
               console.warn(`Warning: Error analyzing file ${fullPath}: ${error}`);
             }
           }
         }
       } catch (error) {
-        console.warn(`Warning: Could not access ${fullPath}: ${error}`);
+        // Log warning but continue processing other items
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.warn(`Warning: Could not access ${fullPath}: ${error}`);
+        }
       }
     }
   } catch (error) {
-    console.warn(`Warning: Error scanning directory ${projectPath}: ${error}`);
+    // Log warning but allow the process to continue
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`Warning: Error scanning directory ${projectPath}: ${error}`);
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
+import { IncomingMessage } from 'http';
 import * as unzipper from 'unzipper';
 import { DateTime } from 'luxon';
 
@@ -90,7 +91,7 @@ class AutoUpdater {
       const zipPath = path.join(tempDir, 'update.zip');
 
       const file = fs.createWriteStream(zipPath);
-      const response = await new Promise<https.IncomingMessage>(
+      const response = await new Promise<IncomingMessage>(
         (resolve, reject) => {
           https
             .get(updateInfo.download_url, (res) => {
@@ -108,15 +109,15 @@ class AutoUpdater {
 
       response.pipe(file);
 
-      await new Promise((resolve, reject) => {
-        file.on('finish', resolve);
+      await new Promise<void>((resolve, reject) => {
+        file.on('finish', () => resolve());
         file.on('error', reject);
       });
 
       const zip = fs.createReadStream(zipPath).pipe(unzipper.Extract({ path: tempDir }));
 
-      await new Promise((resolve, reject) => {
-        zip.on('close', resolve);
+      await new Promise<void>((resolve, reject) => {
+        zip.on('close', () => resolve());
         zip.on('error', reject);
       });
 

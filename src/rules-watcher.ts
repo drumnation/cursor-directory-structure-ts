@@ -1,14 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { watch } from 'chokidar';
-import { RulesGenerator } from './rules-generator';
 import { generateDirectoryStructureContent } from './content-generator';
 import { determineProjectType } from './project-identifier';
 
 class RulesWatcher {
   private projectPath: string;
   private projectId: string;
-  private rulesGenerator: RulesGenerator;
   private watcher: any;
   private lastUpdate: number;
   private updateDelay: number;
@@ -18,7 +16,6 @@ class RulesWatcher {
   constructor(projectPath: string, projectId: string) {
     this.projectPath = projectPath;
     this.projectId = projectId;
-    this.rulesGenerator = new RulesGenerator(projectPath);
     this.lastUpdate = 0;
     this.updateDelay = 5000; // 5 seconds delay between updates
     this.autoUpdate = false;
@@ -94,7 +91,7 @@ class RulesWatcher {
     }
   }
 
-  private handleFileChange(event: string, filePath: string): void {
+  private handleFileChange(filePath: string, event: string): void {
     if (!this.autoUpdate) return;
 
     if (!this.shouldProcessFile(filePath)) return;
@@ -121,9 +118,13 @@ class RulesWatcher {
   }
 
   private shouldProcessFile(filePath: string): boolean {
-    // Only process changes to directory-structure.md or project configuration files
+    // Process changes to source files
+    if (filePath.startsWith('src/')) return true;
+
+    // Process changes to directory-structure.md
     if (filePath.endsWith('directory-structure.md')) return true;
 
+    // Process changes to configuration files based on project type
     const projectType = determineProjectType(this.projectPath);
     switch (projectType) {
       case 'javascript':
@@ -145,13 +146,12 @@ class RulesWatcher {
 
   private async updateRules(): Promise<void> {
     try {
-      const rules = await this.rulesGenerator.generateRules();
-      const rulesPath = path.join(this.projectPath, '.cursorrules.json');
-      fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2));
-      console.log(`[${this.projectId}] Updated .cursorrules.json`);
+      // Only update the directory structure
+      generateDirectoryStructureContent(this.projectPath);
+      console.log(`[${this.projectId}] Updated directory structure`);
     } catch (error) {
       console.error(
-        `[${this.projectId}] Error updating rules: ${error}`
+        `[${this.projectId}] Error updating: ${error}`
       );
     }
   }

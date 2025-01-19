@@ -4,13 +4,11 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true
+    "noImplicitAny": false,
+    "strict": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "**/test-project/**"]
+  "exclude": ["node_modules"]
 }

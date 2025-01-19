@@ -12,6 +12,7 @@ import {
 import { RulesAnalyzer } from './rules-analyzer';
 import { config } from 'dotenv';
 import { CODE_EXTENSIONS } from './config';
+import { GeminiService } from './services/gemini.service';
 
 config();
 
@@ -104,19 +105,47 @@ class RulesGenerator {
 
   private projectPath: string;
   private rulesAnalyzer: RulesAnalyzer;
+  private geminiService: GeminiService;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.rulesAnalyzer = new RulesAnalyzer(projectPath);
+    this.geminiService = new GeminiService();
   }
 
-  async generateRules(
-    aiConfig: AiConfig = this.getDefaultAiConfig()
-  ): Promise<Rules> {
-    const projectInfo = this.rulesAnalyzer.analyzeProjectForRules();
-    const projectStructure = this.analyzeProjectStructure();
+  async generateRules(): Promise<Rules> {
+    try {
+      const rulesAnalyzer = new RulesAnalyzer(this.projectPath);
+      const projectInfo = rulesAnalyzer.analyzeProjectForRules();
 
-    const rules: Rules = {
+      let rules: Rules;
+      try {
+        const geminiService = new GeminiService();
+        const prompt = `Generate rules for a ${projectInfo.type} project with the following structure: ${JSON.stringify(projectInfo)}`;
+        const geminiResponse = await geminiService.generateRules(prompt);
+        rules = JSON.parse(geminiResponse);
+      } catch (error) {
+        console.warn(`Warning: Error using Gemini service, falling back to default rules: ${error}`);
+        rules = this.getDefaultRules(projectInfo);
+      }
+
+      // Save rules to .brain directory
+      const brainDir = path.join(this.projectPath, '.brain');
+      if (!fs.existsSync(brainDir)) {
+        fs.mkdirSync(brainDir, { recursive: true });
+      }
+      const rulesPath = path.join(brainDir, 'rules.json');
+      fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2));
+
+      return rules;
+    } catch (error) {
+      console.error(`Error generating rules: ${error}`);
+      throw error;
+    }
+  }
+
+  private getDefaultRules(projectInfo: any): Rules {
+    return {
       version: '1.0',
       last_updated: DateTime.now().toISO() || '',
       project: {
@@ -217,8 +246,6 @@ class RulesGenerator {
         ],
       },
     };
-
-    return rules;
   }
 
   private getDefaultAiConfig(): AiConfig {

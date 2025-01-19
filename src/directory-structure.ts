@@ -1,11 +1,13 @@
+// Load environment variables first
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 // directory-structure.ts
 import * as fs from 'fs';
 import * as path from 'path';
 import { DateTime } from 'luxon';
 import { loadConfig, UPDATE_INTERVAL } from './config';
 import { generateDirectoryStructureContent } from './content-generator';
-import { RulesAnalyzer } from './rules-analyzer';
-import { RulesGenerator } from './rules-generator';
 import { ProjectWatcherManager } from './rules-watcher';
 import { AutoUpdater } from './auto-updater';
 
@@ -119,28 +121,41 @@ function setupDirectoryStructure(projectPath: string, projectName: string): void
       path.join(projectPath, 'setup.py'),
       path.join(projectPath, 'requirements.txt'),
       path.join(projectPath, 'pyproject.toml')
-    ].filter(p => fs.existsSync(p));
+    ].filter(p => {
+      try {
+        return fs.existsSync(p);
+      } catch (error) {
+        // Silently skip paths we can't access
+        return false;
+      }
+    });
 
     if (validPaths.length === 0) {
       console.warn(`[${projectName}] Warning: No valid paths found in ${projectPath}`);
       return;
     }
 
-    const rulesGenerator = new RulesGenerator(projectPath);
-    const rulesAnalyzer = new RulesAnalyzer(projectPath);
+    try {
+      // Generate content and save directory structure
+      generateDirectoryStructureContent(projectPath);
 
-    const projectInfo = rulesAnalyzer.analyzeProjectForRules();
-    rulesGenerator.generateRules();
-
-    // Generate content and save directory structure
-    generateDirectoryStructureContent(projectPath);
-
-    console.log(
-      `✅ [${projectName}] Directory structure analysis completed at ${DateTime.now().toFormat(
-        'yyyy-MM-dd HH:mm:ss'
-      )}`
-    );
+      console.log(
+        `✅ [${projectName}] Directory structure analysis completed at ${DateTime.now().toFormat(
+          'yyyy-MM-dd HH:mm:ss'
+        )}`
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Silently skip ENOENT errors for ignored directories
+        return;
+      }
+      console.warn(`[${projectName}] Warning: Error generating directory structure: ${error}`);
+    }
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      // Silently skip ENOENT errors for ignored directories
+      return;
+    }
     console.warn(`[${projectName}] Warning: Error setting up directory structure: ${error}`);
   }
 }
@@ -162,90 +177,52 @@ function monitorProject(project: ProjectConfig, config: any): void {
       fs.mkdirSync(brainDir, { recursive: true });
     }
 
-    // Generate initial content
-    generateDirectoryStructureContent(projectPath);
+    try {
+      // Generate initial content
+      generateDirectoryStructureContent(projectPath);
 
-    console.log(
-      `✅ [${projectName}] Directory structure generated at ${DateTime.now().toFormat(
-        'yyyy-MM-dd HH:mm:ss'
-      )}`
-    );
+      console.log(
+        `✅ [${projectName}] Directory structure generated at ${DateTime.now().toFormat(
+          'yyyy-MM-dd HH:mm:ss'
+        )}`
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Silently skip ENOENT errors for ignored directories
+        return;
+      }
+      console.warn(`[${projectName}] Warning: Error generating directory structure: ${error}`);
+    }
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      // Silently skip ENOENT errors for ignored directories
+      return;
+    }
     console.warn(`[${projectName}] Warning: Error generating directory structure: ${error}`);
   }
 }
 
-async function main(): Promise<void> {
-  let config = loadConfig();
-  if (!config) {
-    console.log('No config.json found');
-    config = getDefaultConfig();
-  }
-
-  if (!config.projects) {
-    config.projects = [
-      {
-        name: 'Default Project',
-        project_path: config.project_path,
-        update_interval: config.update_interval || 60,
-        max_depth: config.max_depth || 3,
-      },
-    ];
-  }
-
-  const manager = new ProjectWatcherManager();
+async function main() {
+  // Get target project path from command line args or use current directory
+  const targetProjectPath = process.argv[2] || process.cwd();
+  console.log('Target project path:', targetProjectPath);
 
   try {
-    for (const project of config.projects) {
-      const absolutePath = path.resolve(project.project_path);
-      
-      // Check specific paths instead of the entire project path
-      const validPaths = [
-        path.join(absolutePath, 'src'),
-        path.join(absolutePath, '.brain'),
-        path.join(absolutePath, 'package.json'),
-        path.join(absolutePath, 'setup.py'),
-        path.join(absolutePath, 'requirements.txt'),
-        path.join(absolutePath, 'pyproject.toml')
-      ].filter(p => fs.existsSync(p));
+    // Start watching the project - this will handle the initial generation
+    console.log(`Started watching project: ${path.basename(targetProjectPath)}`);
+    monitorProject({
+      name: path.basename(targetProjectPath),
+      project_path: targetProjectPath,
+      update_interval: 60,
+      max_depth: 3
+    }, getDefaultConfig());
+    console.log(`[${path.basename(targetProjectPath)}] Auto-update enabled`);
 
-      if (validPaths.length > 0) {
-        // Create .brain directory if it doesn't exist
-        const brainDir = path.join(absolutePath, '.brain');
-        if (!fs.existsSync(brainDir)) {
-          fs.mkdirSync(brainDir, { recursive: true });
-        }
-
-        // Do initial setup and start watching
-        setupDirectoryStructure(absolutePath, project.name);
-        manager.addProject(absolutePath);
-        manager.setAutoUpdate(project.name, true);
-        monitorProject({
-          ...project,
-          project_path: absolutePath
-        }, config);
-      } else {
-        console.log(`⚠️ No valid paths found in: ${absolutePath}`);
-      }
-    }
-
-    const projectList = manager.listProjects();
-    if (projectList.length === 0) {
-      console.log('❌ No projects to monitor');
-      return;
-    }
-
-    console.log(
-      `\n📝 Monitoring ${projectList.length} ${projectList.length === 1 ? 'project' : 'projects'}`
-    );
-
-    process.on('SIGINT', () => {
-      console.log('\nStopping monitoring...');
-      manager.stopAll();
-      process.exit(0);
-    });
+    // Keep the process running
+    console.log('\n📝 Monitoring 1 project');
   } catch (error) {
-    console.error(`\n❌ Error: ${error}`);
+    console.error('Error:', error);
+    process.exit(1);
   }
 }
 
