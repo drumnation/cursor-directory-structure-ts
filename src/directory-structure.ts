@@ -104,49 +104,75 @@ function getDefaultConfig(): any {
 }
 
 function setupDirectoryStructure(projectPath: string, projectName: string): void {
-  const rulesGenerator = new RulesGenerator(projectPath);
-  const rulesAnalyzer = new RulesAnalyzer(projectPath);
+  try {
+    // Create .brain directory if it doesn't exist
+    const brainDir = path.join(projectPath, '.brain');
+    if (!fs.existsSync(brainDir)) {
+      fs.mkdirSync(brainDir, { recursive: true });
+    }
 
-  const projectInfo = rulesAnalyzer.analyzeProjectForRules();
-  rulesGenerator.generateRules();
+    // Only analyze specific paths
+    const validPaths = [
+      path.join(projectPath, 'src'),
+      path.join(projectPath, '.brain'),
+      path.join(projectPath, 'package.json'),
+      path.join(projectPath, 'setup.py'),
+      path.join(projectPath, 'requirements.txt'),
+      path.join(projectPath, 'pyproject.toml')
+    ].filter(p => fs.existsSync(p));
 
-  // Generate content and save directory structure
-  generateDirectoryStructureContent(projectPath);
+    if (validPaths.length === 0) {
+      console.warn(`[${projectName}] Warning: No valid paths found in ${projectPath}`);
+      return;
+    }
 
-  console.log(
-    `✅ [${projectName}] Directory structure analysis completed at ${DateTime.now().toFormat(
-      'yyyy-MM-dd HH:mm:ss'
-    )}`
-  );
+    const rulesGenerator = new RulesGenerator(projectPath);
+    const rulesAnalyzer = new RulesAnalyzer(projectPath);
+
+    const projectInfo = rulesAnalyzer.analyzeProjectForRules();
+    rulesGenerator.generateRules();
+
+    // Generate content and save directory structure
+    generateDirectoryStructureContent(projectPath);
+
+    console.log(
+      `✅ [${projectName}] Directory structure analysis completed at ${DateTime.now().toFormat(
+        'yyyy-MM-dd HH:mm:ss'
+      )}`
+    );
+  } catch (error) {
+    console.warn(`[${projectName}] Warning: Error setting up directory structure: ${error}`);
+  }
 }
 
 function monitorProject(project: ProjectConfig, config: any): void {
   const projectPath = project.project_path;
   const projectName = project.name;
-  const updateInterval = project.update_interval || config.update_interval;
 
   console.log(
-    `🔍 [${projectName}] Monitoring started at ${DateTime.now().toFormat(
+    `🔍 [${projectName}] Initial directory structure analysis at ${DateTime.now().toFormat(
       'yyyy-MM-dd HH:mm:ss'
     )}`
   );
 
-  setInterval(() => {
-    try {
-      // Generate content and save directory structure
-      generateDirectoryStructureContent(projectPath);
-
-      console.log(
-        `📝 [${projectName}] Directory structure updated at ${DateTime.now().toFormat(
-          'yyyy-MM-dd HH:mm:ss'
-        )}`
-      );
-    } catch (error) {
-      console.error(
-        `❌ [${projectName}] Error updating directory structure: ${error}`
-      );
+  try {
+    // Create .brain directory if it doesn't exist
+    const brainDir = path.join(projectPath, '.brain');
+    if (!fs.existsSync(brainDir)) {
+      fs.mkdirSync(brainDir, { recursive: true });
     }
-  }, updateInterval * 1000);
+
+    // Generate initial content
+    generateDirectoryStructureContent(projectPath);
+
+    console.log(
+      `✅ [${projectName}] Directory structure generated at ${DateTime.now().toFormat(
+        'yyyy-MM-dd HH:mm:ss'
+      )}`
+    );
+  } catch (error) {
+    console.warn(`[${projectName}] Warning: Error generating directory structure: ${error}`);
+  }
 }
 
 async function main(): Promise<void> {
@@ -173,22 +199,33 @@ async function main(): Promise<void> {
     for (const project of config.projects) {
       const absolutePath = path.resolve(project.project_path);
       
-      if (fs.existsSync(absolutePath)) {
+      // Check specific paths instead of the entire project path
+      const validPaths = [
+        path.join(absolutePath, 'src'),
+        path.join(absolutePath, '.brain'),
+        path.join(absolutePath, 'package.json'),
+        path.join(absolutePath, 'setup.py'),
+        path.join(absolutePath, 'requirements.txt'),
+        path.join(absolutePath, 'pyproject.toml')
+      ].filter(p => fs.existsSync(p));
+
+      if (validPaths.length > 0) {
+        // Create .brain directory if it doesn't exist
+        const brainDir = path.join(absolutePath, '.brain');
+        if (!fs.existsSync(brainDir)) {
+          fs.mkdirSync(brainDir, { recursive: true });
+        }
+
+        // Do initial setup and start watching
         setupDirectoryStructure(absolutePath, project.name);
         manager.addProject(absolutePath);
         manager.setAutoUpdate(project.name, true);
-      } else {
-        console.log(`⚠️ Not found: ${absolutePath}`);
-      }
-    }
-
-    for (const project of config.projects) {
-      const absolutePath = path.resolve(project.project_path);
-      if (fs.existsSync(absolutePath)) {
         monitorProject({
           ...project,
           project_path: absolutePath
         }, config);
+      } else {
+        console.log(`⚠️ No valid paths found in: ${absolutePath}`);
       }
     }
 

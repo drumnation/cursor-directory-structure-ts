@@ -45,3 +45,5 @@ logs/
 
 # Optional REPL history
 .node_repl_history
+
+.brain/directory-structure.md

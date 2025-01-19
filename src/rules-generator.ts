@@ -11,6 +11,7 @@ import {
 } from './types';
 import { RulesAnalyzer } from './rules-analyzer';
 import { config } from 'dotenv';
+import { CODE_EXTENSIONS } from './config';
 
 config();
 
@@ -353,6 +354,24 @@ class RulesGenerator {
     const files: string[] = [];
     const stack: string[] = [this.projectPath];
 
+    // Directories to ignore
+    const ignoredDirs = new Set([
+      'node_modules',
+      '__pycache__',
+      'venv',
+      '.git',
+      '.idea',
+      '.vscode',
+      'dist',
+      'build',
+      'data',          // Ignore data directories
+      'chrome_data',   // Specifically ignore chrome data
+      'tmp',
+      'temp',
+      'logs',
+      'coverage'
+    ]);
+
     while (stack.length > 0) {
       const currentPath = stack.pop()!;
       const items = fs.readdirSync(currentPath);
@@ -362,15 +381,16 @@ class RulesGenerator {
         const stat = fs.statSync(fullPath);
 
         if (stat.isDirectory()) {
-          if (
-            !item.startsWith('.') &&
-            item !== 'node_modules' &&
-            item !== '__pycache__'
-          ) {
+          // Skip if directory name is in ignored list or starts with a dot
+          if (!item.startsWith('.') && !ignoredDirs.has(item)) {
             stack.push(fullPath);
           }
         } else if (stat.isFile()) {
-          files.push(fullPath);
+          // Only include files with extensions we care about
+          const ext = path.extname(item).toLowerCase();
+          if (CODE_EXTENSIONS.has(ext)) {
+            files.push(fullPath);
+          }
         }
       }
     }

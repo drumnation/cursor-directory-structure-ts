@@ -93,8 +93,7 @@ function resolveProjectPath(projectPath: string): string {
 
 function loadConfig(): any {
   try {
-    const scriptDir = __dirname;
-    const configPath = path.join(scriptDir, 'config.json');
+    const configPath = path.join(process.cwd(), 'config.json');
 
     if (fs.existsSync(configPath)) {
       const data = fs.readFileSync(configPath, 'utf-8');

@@ -1,8 +1,8 @@
 {
-  "name": "cursor-focus-ts",
+  "name": "directory-structure-ts",
   "version": "1.0.0",
-  "description": "A TypeScript version of CursorFocus",
-  "main": "dist/focus.js",
+  "description": "CursorDirectoryStructure",
+  "main": "dist/directory-structure.js",
   "scripts": {
     "build": "tsc",
     "start": "tsx src/directory-structure.ts",

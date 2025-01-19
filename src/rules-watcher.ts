@@ -1,71 +1,123 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { FSWatcher, watch } from 'chokidar';
+import { watch } from 'chokidar';
 import { RulesGenerator } from './rules-generator';
+import { generateDirectoryStructureContent } from './content-generator';
 import { determineProjectType } from './project-identifier';
 
 class RulesWatcher {
   private projectPath: string;
   private projectId: string;
   private rulesGenerator: RulesGenerator;
+  private watcher: any;
   private lastUpdate: number;
   private updateDelay: number;
   private autoUpdate: boolean;
-  private watcher: FSWatcher;
+  private updateTimeout: NodeJS.Timeout | null;
 
   constructor(projectPath: string, projectId: string) {
     this.projectPath = projectPath;
     this.projectId = projectId;
     this.rulesGenerator = new RulesGenerator(projectPath);
     this.lastUpdate = 0;
-    this.updateDelay = 5; // Seconds to wait before updating
-    this.autoUpdate = false; // Disable auto-update by default
-    this.watcher = watch(projectPath, {
-      ignored: /(^|[\/\\])\../, // Ignore dotfiles
-      persistent: true,
-      ignoreInitial: true,
-      depth: 99, // Recursively watch all subdirectories
-    });
+    this.updateDelay = 5000; // 5 seconds delay between updates
+    this.autoUpdate = false;
+    this.updateTimeout = null;
+    
+    // Add error handling for missing directories
+    if (!fs.existsSync(projectPath)) {
+      console.warn(`[${projectId}] Warning: Project path does not exist: ${projectPath}`);
+      return;
+    }
 
-    this.watcher
-      .on('add', (path) => this.onFileChange('add', path))
-      .on('change', (path) => this.onFileChange('change', path))
-      .on('unlink', (path) => this.onFileChange('unlink', path))
-      .on('addDir', (path) => this.onDirectoryChange('addDir', path))
-      .on('unlinkDir', (path) => this.onDirectoryChange('unlinkDir', path))
-      .on('error', (error) => console.error(`Watcher error: ${error}`));
+    try {
+      // Create .brain directory if it doesn't exist
+      const brainDir = path.join(projectPath, '.brain');
+      if (!fs.existsSync(brainDir)) {
+        fs.mkdirSync(brainDir, { recursive: true });
+      }
+
+      // Only watch specific files and directories
+      const watchPaths = [
+        path.join(projectPath, 'src'),
+        path.join(projectPath, '.brain'),
+        path.join(projectPath, 'package.json'),
+        path.join(projectPath, 'setup.py'),
+        path.join(projectPath, 'requirements.txt'),
+        path.join(projectPath, 'pyproject.toml')
+      ].filter(p => fs.existsSync(p)); // Only watch paths that exist
+
+      if (watchPaths.length === 0) {
+        console.warn(`[${projectId}] Warning: No valid paths to watch in ${projectPath}`);
+        return;
+      }
+
+      this.watcher = watch(watchPaths, {
+        ignored: [
+          /(^|[\/\\])\../,  // Ignore dotfiles
+          '**/node_modules/**',
+          '**/__pycache__/**',
+          '**/venv/**',
+          '**/.git/**',
+          '**/dist/**',
+          '**/build/**',
+          '**/data/**',      // Ignore data directories
+          '**/chrome_data/**', // Specifically ignore chrome_data
+          '**/tmp/**',
+          '**/temp/**',
+          '**/logs/**',
+          '**/coverage/**'
+        ],
+        persistent: true,
+        ignoreInitial: true,
+        depth: 1, // Only watch immediate subdirectories
+        awaitWriteFinish: {
+          stabilityThreshold: 2000,
+          pollInterval: 100
+        }
+      });
+
+      this.watcher
+        .on('add', this.handleFileChange.bind(this))
+        .on('change', this.handleFileChange.bind(this))
+        .on('unlink', this.handleFileChange.bind(this))
+        .on('error', (error: Error) => {
+          if ((error as any).code === 'ENOENT') {
+            console.warn(`[${this.projectId}] Warning: Directory not found: ${(error as any).path}`);
+          } else {
+            console.error(`[${this.projectId}] Watcher error: ${error}`);
+          }
+        });
+
+    } catch (error) {
+      console.error(`[${this.projectId}] Error setting up watcher: ${error}`);
+    }
   }
 
-  private onFileChange(event: string, filePath: string): void {
+  private handleFileChange(event: string, filePath: string): void {
     if (!this.autoUpdate) return;
 
     if (!this.shouldProcessFile(filePath)) return;
 
-    const now = Date.now();
-    if (now - this.lastUpdate < this.updateDelay * 1000) {
-      return; // Too soon since last update
+    // Clear any existing timeout
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
     }
 
-    this.lastUpdate = now;
-    console.log(
-      `[${this.projectId}] File ${event}: ${filePath}. Updating rules...`
-    );
-    this.updateRules();
-  }
+    // Set a new timeout
+    this.updateTimeout = setTimeout(() => {
+      const now = Date.now();
+      if (now - this.lastUpdate < this.updateDelay) {
+        return; // Too soon since last update
+      }
 
-  private onDirectoryChange(event: string, dirPath: string): void {
-    if (!this.autoUpdate) return;
-
-    const now = Date.now();
-    if (now - this.lastUpdate < this.updateDelay * 1000) {
-      return; // Too soon since last update
-    }
-
-    this.lastUpdate = now;
-    console.log(
-      `[${this.projectId}] Directory ${event}: ${dirPath}. Updating rules...`
-    );
-    this.updateRules();
+      this.lastUpdate = now;
+      console.log(
+        `[${this.projectId}] File ${event}: ${filePath}. Updating rules...`
+      );
+      this.updateRules();
+      this.updateTimeout = null;
+    }, 1000); // Wait 1 second after last change before updating
   }
 
   private shouldProcessFile(filePath: string): boolean {
@@ -114,8 +166,10 @@ class RulesWatcher {
   }
 
   public stop(): void {
-    this.watcher.close();
-    console.log(`[${this.projectId}] Stopped watching project`);
+    if (this.watcher) {
+      this.watcher.close();
+      console.log(`[${this.projectId}] Stopped watching project`);
+    }
   }
 }
 
@@ -127,14 +181,15 @@ class ProjectWatcherManager {
   }
 
   addProject(projectPath: string): string {
-    if (!fs.existsSync(projectPath)) {
-      throw new Error(`Project path does not exist: ${projectPath}`);
-    }
-
     const projectId = this.generateProjectId(projectPath);
     if (this.watchers[projectId]) {
       console.log(`Already watching project: ${projectId}`);
       return projectId;
+    }
+
+    if (!fs.existsSync(projectPath)) {
+      console.warn(`Warning: Project path does not exist: ${projectPath}`);
+      // Still create the watcher - it will handle the missing directory gracefully
     }
 
     const watcher = new RulesWatcher(projectPath, projectId);

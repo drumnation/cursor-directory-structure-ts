@@ -1,24 +1,91 @@
 # Directory Structure
 
-## File Tree
+## Project Metrics
 
-├── src
-│   ├── analyzers.ts
-│   ├── auto-updater.ts
-│   ├── config.ts
-│   ├── content-generator.ts
-│   ├── directory-structure.ts
-│   ├── project-identifier.ts
-│   ├── rules-analyzer.ts
-│   ├── rules-generator.ts
-│   ├── rules-watcher.ts
-│   ├── setup.ts
-│   └── types.ts
-└── tests
-    ├── analyzers.test.ts
-    ├── content-generator.test.ts
-    └── project-identifier.test.ts
+**Files**: 14
+**Total Lines**: 3710
 
-### Last Updated
+## File Types
 
-January 19, 2025 at 12:18 AM
+- .ts: 14 files, 3710 lines
+
+## Functions
+
+### src/analyzers.ts
+
+- analyzeFileContent
+- isBinaryFile
+- shouldIgnoreFile
+
+### src/auto-updater.ts
+
+- clearConsole
+
+### src/config.ts
+
+- getDefaultConfig
+- getFileLengthLimit
+- loadConfig
+- resolveProjectPath
+
+### src/content-generator.ts
+
+- generateDirectoryStructureContent
+- getDirectoryStructure
+- isBinaryFile
+- saveDirectoryStructure
+- scanForMetrics
+- shouldIgnoreDirectory
+- shouldIgnoreFile
+- structureToTree
+
+### src/directory-structure.ts
+
+- getDefaultConfig
+- getParentDirectory
+- main
+- monitorProject
+- setupDirectoryStructure
+
+### src/project-identifier.ts
+
+- determineProjectType
+- enumerateProjectFiles
+- getProjectDescription
+- identifyMainLanguage
+- resolveFileTypeInfo
+- scanForProjects
+
+### src/rules-watcher.ts
+
+- startWatching
+
+### src/setup.ts
+
+- addNewProject
+- displayMenu
+- loadConfig
+- manageProjects
+- resolveProjectPath
+- saveConfig
+- scanDirectory
+- setupCursorFocus
+
+### tests/analyzers.test.ts
+
+- cleanupTestFiles
+- createTestFiles
+- testFunction
+
+### tests/content-generator.test.ts
+
+- anotherFunction
+- cleanupTestProject
+- createTestProject
+- subFunction
+- testFunction
+
+### tests/project-identifier.test.ts
+
+- cleanupTestProjects
+- createTestProjects
