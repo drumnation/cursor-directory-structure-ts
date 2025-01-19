@@ -36,7 +36,7 @@ function getDefaultConfig(): any {
       '.vscode',
       'dist',
       'build',
-      'CursorFocus',
+      'cursor-directory-structure',
     ],
     ignored_files: ['.DS_Store', '*.pyc', '*.pyo'],
     binary_extensions: [

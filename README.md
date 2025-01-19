@@ -114,7 +114,7 @@ Example `.brain/directory-structure.md`:
 - resolveProjectPath
 - saveConfig
 - scanDirectory
-- setupCursorFocus
+- setupDirectoryStructure
 
 ### tests/analyzers.test.ts
 

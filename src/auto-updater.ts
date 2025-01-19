@@ -27,7 +27,7 @@ class AutoUpdater {
   private repoUrl: string;
   private apiUrl: string;
 
-  constructor(repoUrl: string = 'https://github.com/RenjiYuusei/CursorFocus') {
+  constructor(repoUrl: string = 'https://github.com/RenjiYuusei/CursorDirectoryStructure') {
     this.repoUrl = repoUrl;
     this.apiUrl = repoUrl.replace('github.com', 'api.github.com/repos');
   }
@@ -87,14 +87,18 @@ class AutoUpdater {
 
   async update(updateInfo: UpdateInfo): Promise<boolean> {
     try {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursorfocus-'));
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-directory-structure-'));
       const zipPath = path.join(tempDir, 'update.zip');
 
       const file = fs.createWriteStream(zipPath);
       const response = await new Promise<IncomingMessage>(
         (resolve, reject) => {
           https
-            .get(updateInfo.download_url, (res) => {
+            .get(updateInfo.download_url, {
+              headers: {
+                'User-Agent': 'CursorDirectoryStructure-Updater',
+              },
+            }, (res) => {
               if (res.statusCode !== 200) {
                 reject(
                   new Error(`Request failed with status code ${res.statusCode}`)
@@ -170,7 +174,7 @@ class AutoUpdater {
           url,
           {
             headers: {
-              'User-Agent': 'CursorFocus-Updater',
+              'User-Agent': 'CursorDirectoryStructure-Updater',
             },
           },
           (res) => {

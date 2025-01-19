@@ -14,7 +14,7 @@ function resolveProjectPath(projectPath: string): string {
 }
 
 async function displayMenu(): Promise<string> {
-  console.log('\nCursorFocus');
+  console.log('\nCursor Directory Structure');
   console.log('1. Manage Projects');
   console.log('2. Scan Directory');
   console.log('3. Add Project');
@@ -235,7 +235,7 @@ async function addNewProject(): Promise<void> {
   saveConfig(config);
 }
 
-async function setupCursorFocus(): Promise<void> {
+async function setupDirectoryStructure(): Promise<void> {
   while (true) {
     const choice = await displayMenu();
     switch (choice) {
@@ -258,5 +258,5 @@ async function setupCursorFocus(): Promise<void> {
 }
 
 if (require.main === module) {
-  setupCursorFocus();
+  setupDirectoryStructure();
 }

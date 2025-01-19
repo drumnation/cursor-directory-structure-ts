@@ -79,7 +79,7 @@ describe('RulesGenerator with Gemini Integration', () => {
       JSON.stringify({
         name: 'test-project',
         version: '1.0.0',
-        description: 'Test project for cursor-focus-ts',
+        description: 'Test project for cursor-directory-structure-ts',
         dependencies: {
           express: '^4.18.2'
         }
