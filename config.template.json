@@ -1,0 +1,9 @@
+{
+  "projects": [
+    {
+      "path": "/path/to/your/project",
+      "type": "auto-detected",
+      "rules": []
+    }
+  ]
+} 
