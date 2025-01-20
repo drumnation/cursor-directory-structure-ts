@@ -86,10 +86,10 @@ describe('generateDirectoryStructureContent', () => {
     assert.ok(result.includes('Directory Structure'), 'Should include directory structure heading');
   });
 
-  test('should handle invalid paths', () => {
+  test('should handle invalid paths', async () => {
     const nonexistentPath = path.join(TEST_DIR, 'nonexistent');
-    assert.throws(() => {
-      generateDirectoryStructureContent(nonexistentPath);
+    await assert.rejects(async () => {
+      await generateDirectoryStructureContent(nonexistentPath);
     }, /ENOENT/);
   });
 

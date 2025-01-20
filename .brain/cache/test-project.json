@@ -1,0 +1,8 @@
+{
+  "/Users/dmieloch/Dev/experiments/cursor-focus-ts/tests/test-project/.brain/directory-structure.md": {
+    "content": "# Directory Structure\n\n## Project Metrics\n\n**Files**: 3\n**Total Lines**: 15\n\n## File Types\n\n- .ts: 3 files, 15 lines\n\n## Project Tree\n\n```\n├── another.ts    # Contains the \"anotherFunction\" function.\n├── package.json    # Manages dependencies and configuration for the project.\n├── subdir    # Subdirectory containing \"sub.ts\".\n│   └── sub.ts    # Contains the \"subFunction\" function.\n└── test.ts    # Contains the \"testFunction\" function.\n```\n\n\n## Functions\n\n\n### another.ts\n\n- anotherFunction\n\n### subdir/sub.ts\n\n- subFunction\n\n### test.ts\n\n- testFunction",
+    "hash": "217fd6610777cf61b53a59222a6594ce",
+    "lastModified": 1737336466239,
+    "functions": {}
+  }
+}

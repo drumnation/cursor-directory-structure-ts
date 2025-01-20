@@ -3,6 +3,9 @@ import * as path from 'path';
 import { watch } from 'chokidar';
 import { generateDirectoryStructureContent } from './content-generator';
 import { determineProjectType } from './project-identifier';
+import { CacheManager } from './cache-manager';
+
+const cacheManager = new CacheManager();
 
 class RulesWatcher {
   private projectPath: string;
@@ -18,7 +21,7 @@ class RulesWatcher {
     this.projectId = projectId;
     this.lastUpdate = 0;
     this.updateDelay = 5000; // 5 seconds delay between updates
-    this.autoUpdate = false;
+    this.autoUpdate = true; // Enable auto-update by default
     this.updateTimeout = null;
     
     // Add error handling for missing directories
@@ -102,18 +105,27 @@ class RulesWatcher {
     }
 
     // Set a new timeout
-    this.updateTimeout = setTimeout(() => {
+    this.updateTimeout = setTimeout(async () => {
       const now = Date.now();
       if (now - this.lastUpdate < this.updateDelay) {
         return; // Too soon since last update
       }
 
-      this.lastUpdate = now;
-      console.log(
-        `[${this.projectId}] File ${event}: ${filePath}. Updating rules...`
-      );
-      this.updateRules();
-      this.updateTimeout = null;
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        if (!cacheManager.hasFileChanged(this.projectId, filePath, content)) {
+          return; // File hasn't changed according to cache
+        }
+
+        this.lastUpdate = now;
+        console.log(
+          `[${this.projectId}] File ${event}: ${filePath}. Updating rules...`
+        );
+        await this.updateRules();
+        this.updateTimeout = null;
+      } catch (error) {
+        console.error(`[${this.projectId}] Error handling file change: ${error}`);
+      }
     }, 1000); // Wait 1 second after last change before updating
   }
 
@@ -147,7 +159,7 @@ class RulesWatcher {
   private async updateRules(): Promise<void> {
     try {
       // Only update the directory structure
-      generateDirectoryStructureContent(this.projectPath);
+      await generateDirectoryStructureContent(this.projectPath);
       console.log(`[${this.projectId}] Updated directory structure`);
     } catch (error) {
       console.error(
@@ -180,8 +192,7 @@ class ProjectWatcherManager {
     this.watchers = {};
   }
 
-  addProject(projectPath: string): string {
-    const projectId = this.generateProjectId(projectPath);
+  addProject(projectPath: string, projectId: string = path.basename(projectPath)): string {
     if (this.watchers[projectId]) {
       console.log(`Already watching project: ${projectId}`);
       return projectId;

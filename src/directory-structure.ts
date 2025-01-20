@@ -203,23 +203,34 @@ function monitorProject(project: ProjectConfig, config: any): void {
 }
 
 async function main() {
-  // Get target project path from command line args or use current directory
-  const targetProjectPath = process.argv[2] || process.cwd();
-  console.log('Target project path:', targetProjectPath);
-
   try {
-    // Start watching the project - this will handle the initial generation
-    console.log(`Started watching project: ${path.basename(targetProjectPath)}`);
-    monitorProject({
-      name: path.basename(targetProjectPath),
-      project_path: targetProjectPath,
-      update_interval: 60,
-      max_depth: 3
-    }, getDefaultConfig());
-    console.log(`[${path.basename(targetProjectPath)}] Auto-update enabled`);
+    const config = loadConfig();
+    const manager = new ProjectWatcherManager();
+    
+    let monitoredCount = 0;
+    for (const project of config.projects) {
+      if (project.watch) {
+        console.log(`Started watching project: ${project.name}`);
+        monitorProject({
+          name: project.name,
+          project_path: project.project_path,
+          update_interval: 60,
+          max_depth: 3
+        }, getDefaultConfig());
+        manager.addProject(project.project_path, project.name);
+        manager.setAutoUpdate(project.name, true);
+        monitoredCount++;
+      }
+    }
+
+    console.log(`\n📝 Monitoring ${monitoredCount} projects`);
 
     // Keep the process running
-    console.log('\n📝 Monitoring 1 project');
+    process.on('SIGINT', () => {
+      console.log('\nStopping watchers...');
+      manager.stopAll();
+      process.exit(0);
+    });
   } catch (error) {
     console.error('Error:', error);
     process.exit(1);

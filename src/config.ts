@@ -8,8 +8,8 @@ export const UPDATE_INTERVAL = 60;
 
 // Function patterns for different languages
 export const FUNCTION_PATTERNS: { [key: string]: string } = {
-  ts: 'function\\s+([a-zA-Z_$][\\w$]*)\\s*\\(',
-  js: 'function\\s+([a-zA-Z_$][\\w$]*)\\s*\\(',
+  ts: '(?:(?:async\\s+)?function\\s+([a-zA-Z_$][\\w$]*)\\s*\\(|(?:public|private|protected)?\\s*(?:async\\s+)?([a-zA-Z_$][\\w$]*)\\s*\\(|(?:const|let|var)\\s+([a-zA-Z_$][\\w$]*)\\s*=\\s*(?:async\\s+)?(?:function\\s*\\(|\\([^)]*\\)\\s*=>))',
+  js: '(?:(?:async\\s+)?function\\s+([a-zA-Z_$][\\w$]*)\\s*\\(|(?:const|let|var)\\s+([a-zA-Z_$][\\w$]*)\\s*=\\s*(?:async\\s+)?(?:function\\s*\\(|\\([^)]*\\)\\s*=>))',
   py: 'def\\s+([a-zA-Z_][\\w]*)\\s*\\(',
 };
 

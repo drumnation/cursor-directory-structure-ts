@@ -17,6 +17,7 @@ import { DateTime } from 'luxon';
 import { CODE_EXTENSIONS } from './config';
 import { analyzeFileContent } from './analyzers';
 import { GeminiService } from './gemini-service';
+import { CacheManager } from './cache-manager';
 
 const IGNORED_DIRECTORIES = new Set([
   'node_modules',
@@ -34,6 +35,8 @@ const IGNORED_DIRECTORIES = new Set([
   'logs',
   'coverage'
 ]);
+
+const cacheManager = new CacheManager();
 
 function shouldIgnoreDirectory(dirName: string): boolean {
   return dirName.startsWith('.') || IGNORED_DIRECTORIES.has(dirName);
@@ -189,6 +192,45 @@ function saveDirectoryStructure(projectPath: string, structure: any, metrics: Pr
 }
 
 async function generateDirectoryStructureContent(projectPath: string): Promise<string> {
+  // Check if directory exists first
+  if (!fs.existsSync(projectPath)) {
+    throw new Error(`ENOENT: Directory does not exist: ${projectPath}`);
+  }
+
+  const projectId = path.basename(projectPath);
+  const brainDir = path.join(projectPath, '.brain');
+  const structureFile = path.join(brainDir, 'directory-structure.md');
+
+  // Create .brain directory if it doesn't exist
+  if (!fs.existsSync(brainDir)) {
+    fs.mkdirSync(brainDir, { recursive: true });
+  }
+
+  try {
+    const content = fs.readFileSync(structureFile, 'utf-8');
+    if (!cacheManager.hasFileChanged(projectId, structureFile, content)) {
+      // Use cached content if file hasn't changed
+      const cachedContent = cacheManager.getCachedFileContent(projectId, structureFile);
+      if (cachedContent) {
+        return cachedContent;
+      }
+    }
+
+    // Generate new content and update cache
+    const newContent = await generateContent(projectPath);
+    fs.writeFileSync(structureFile, newContent);
+    cacheManager.updateFileCache(projectId, structureFile, newContent);
+    return newContent;
+  } catch (error) {
+    // File doesn't exist or other error, generate new content
+    const newContent = await generateContent(projectPath);
+    fs.writeFileSync(structureFile, newContent);
+    cacheManager.updateFileCache(projectId, structureFile, newContent);
+    return newContent;
+  }
+}
+
+async function generateContent(projectPath: string): Promise<string> {
   const metrics = new ProjectMetrics();
   scanForMetrics(projectPath, metrics);
 
