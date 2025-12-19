@@ -1,39 +1,52 @@
 {
-  "name": "cursor-directory-structure-ts",
+  "name": "@brain-garden/directory-structure",
   "version": "1.0.0",
-  "description": "A TypeScript tool for monitoring and analyzing project directory structures, with a focus on Cursor IDE integration",
-  "main": "dist/directory-structure.js",
+  "description": "AI-powered directory structure analyzer with Gemini integration. Provides automatic codebase context for AI assistants.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "directory-structure": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch",
     "start": "tsx src/directory-structure.ts",
+    "generate": "tsx src/directory-structure.ts",
+    "generate:monorepo": "tsx src/brain-garden-adapter.ts",
+    "watch": "tsx src/directory-structure.ts --watch",
     "setup": "tsx src/setup.ts",
-    "test": "tsx --test tests/*.test.ts",
-    "test:watch": "tsx --test --watch tests/*.test.ts",
-    "test:coverage": "tsx --test --experimental-test-coverage tests/*.test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "cursor",
     "directory",
     "structure",
     "typescript",
     "analysis",
-    "monitoring"
+    "ai",
+    "gemini",
+    "brain-garden",
+    "claude-code",
+    "cursor"
   ],
   "author": "drumnation",
   "license": "ISC",
   "devDependencies": {
     "@types/luxon": "^3.4.2",
-    "@types/node": "^20.11.16",
+    "@types/node": "^22.10.2",
     "@types/unzipper": "^0.10.9",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
     "vitest": "^3.0.2"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "chokidar": "^3.5.3",
+    "commander": "^12.1.0",
     "dotenv": "^16.4.1",
     "luxon": "^3.4.4",
-    "unzipper": "^0.10.14"
+    "openai": "^4.77.0"
   }
 }
