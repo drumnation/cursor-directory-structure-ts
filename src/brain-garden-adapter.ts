@@ -18,6 +18,7 @@ import { DateTime } from 'luxon';
 import { AIService, FREE_MODELS } from './ai-service.js';
 import { CODE_EXTENSIONS, IGNORED_DIRECTORIES } from './config';
 import { analyzeFileContent } from './analyzers';
+import { IncrementalGenerator } from './incremental-generator.js';
 
 // Brain Garden specific directories to categorize
 const BRAIN_GARDEN_CATEGORIES = {
@@ -155,6 +156,99 @@ function scanPackages(rootPath: string): { [name: string]: PackageMetrics } {
 
   for (const pkgName of packages) {
     const pkgPath = path.join(packagesDir, pkgName);
+    const metrics = scanDirectory(pkgPath);
+    const subCategory = (BRAIN_GARDEN_CATEGORIES.packages.subCategories as any)[pkgName];
+
+    result[pkgName] = {
+      files: metrics.files,
+      lines: metrics.lines,
+      description: subCategory || readPackageDescription(pkgPath) || `Package: ${pkgName}`,
+    };
+  }
+
+  return result;
+}
+
+// Incremental versions that use cache for unchanged directories
+function scanAppsIncremental(
+  rootPath: string,
+  incremental: IncrementalGenerator,
+  changes: { added: string[]; modified: string[]; deleted: string[]; unchanged: string[] }
+): { [name: string]: AppMetrics } {
+  const appsDir = path.join(rootPath, 'apps');
+  const result: { [name: string]: AppMetrics } = {};
+
+  if (!fs.existsSync(appsDir)) return result;
+
+  const apps = fs.readdirSync(appsDir).filter(name => {
+    const appPath = path.join(appsDir, name);
+    return fs.statSync(appPath).isDirectory() && !name.startsWith('.');
+  });
+
+  for (const appName of apps) {
+    const appPath = path.join(appsDir, appName);
+
+    // Check if we can use cached data
+    if (!incremental.directoryHasChanges(appPath, changes)) {
+      const cached = incremental.getCachedAppData(appName);
+      if (cached) {
+        result[appName] = {
+          files: cached.files,
+          lines: cached.lines,
+          type: cached.type,
+          description: cached.description,
+        };
+        continue;
+      }
+    }
+
+    // Scan fresh
+    const metrics = scanDirectory(appPath);
+    const subCategory = (BRAIN_GARDEN_CATEGORIES.apps.subCategories as any)[appName];
+
+    result[appName] = {
+      files: metrics.files,
+      lines: metrics.lines,
+      type: detectAppType(appPath),
+      description: subCategory || `Application: ${appName}`,
+    };
+  }
+
+  return result;
+}
+
+function scanPackagesIncremental(
+  rootPath: string,
+  incremental: IncrementalGenerator,
+  changes: { added: string[]; modified: string[]; deleted: string[]; unchanged: string[] }
+): { [name: string]: PackageMetrics } {
+  const packagesDir = path.join(rootPath, 'packages');
+  const result: { [name: string]: PackageMetrics } = {};
+
+  if (!fs.existsSync(packagesDir)) return result;
+
+  const packages = fs.readdirSync(packagesDir).filter(name => {
+    const pkgPath = path.join(packagesDir, name);
+    return fs.statSync(pkgPath).isDirectory() && !name.startsWith('.');
+  });
+
+  for (const pkgName of packages) {
+    const pkgPath = path.join(packagesDir, pkgName);
+
+    // Check if we can use cached data
+    if (!incremental.directoryHasChanges(pkgPath, changes)) {
+      const cached = incremental.getCachedPackageData(pkgName);
+      if (cached) {
+        result[pkgName] = {
+          files: cached.files,
+          lines: cached.lines,
+          description: cached.description,
+        };
+        continue;
+      }
+    }
+
+    // Scan fresh
     const metrics = scanDirectory(pkgPath);
     const subCategory = (BRAIN_GARDEN_CATEGORIES.packages.subCategories as any)[pkgName];
 
@@ -320,17 +414,31 @@ function generateTreeStructure(rootPath: string, maxDepth: number = 3): string[]
   return lines;
 }
 
-async function generateBrainGardenStructure(): Promise<void> {
+async function generateBrainGardenStructure(options: { force?: boolean } = {}): Promise<void> {
   const rootPath = getMonorepoRoot();
+  const incremental = new IncrementalGenerator(rootPath);
+  const startTime = Date.now();
+
   console.log(`🧠 Brain Garden Directory Structure Generator`);
   console.log(`📁 Root: ${rootPath}`);
 
-  // Collect metrics
+  // Check if we can use incremental mode
+  const changes = incremental.detectChanges();
+  const isIncremental = !options.force && !changes.added.includes('*');
+
+  if (isIncremental) {
+    const stats = incremental.getCacheStats();
+    console.log(`⚡ Incremental mode (${stats.hits} cached items, ~${stats.savedTime} saved)`);
+  } else {
+    console.log(`🔄 Full regeneration mode`);
+  }
+
+  // Collect metrics with caching
   const metrics: MonorepoMetrics = {
     totalFiles: 0,
     totalLines: 0,
-    apps: scanApps(rootPath),
-    packages: scanPackages(rootPath),
+    apps: isIncremental ? scanAppsIncremental(rootPath, incremental, changes) : scanApps(rootPath),
+    packages: isIncremental ? scanPackagesIncremental(rootPath, incremental, changes) : scanPackages(rootPath),
     groveFeatures: scanGroveFeatures(rootPath),
   };
 
@@ -347,27 +455,43 @@ async function generateBrainGardenStructure(): Promise<void> {
   // Generate tree structure
   const treeLines = generateTreeStructure(rootPath, 2);
 
-  // Try to get AI descriptions (optional) - uses OpenRouter with free models
+  // Try to get AI descriptions with caching
   let aiDescriptions: { [key: string]: string } = {};
-  try {
-    const aiService = new AIService({
-      model: FREE_MODELS.GEMINI_FLASH, // Free model via OpenRouter
-    });
-    const prompt = `Given this Brain Garden monorepo structure, provide brief descriptions (max 50 chars) for each top-level directory:
+  const cachedDescriptions = incremental.getCachedDescription('top-level');
+
+  if (cachedDescriptions && isIncremental && !incremental.directoryHasChanges(rootPath, changes)) {
+    try {
+      aiDescriptions = JSON.parse(cachedDescriptions);
+      console.log('✨ Using cached AI descriptions');
+    } catch {
+      // Parse failed, regenerate
+    }
+  }
+
+  if (Object.keys(aiDescriptions).length === 0) {
+    try {
+      const aiService = new AIService({
+        model: FREE_MODELS.GEMINI_FLASH, // Free model via OpenRouter
+      });
+      const prompt = `Given this Brain Garden monorepo structure, provide brief descriptions (max 50 chars) for each top-level directory:
 
 ${treeLines.slice(0, 30).join('\n')}
 
 Format as "path: description" one per line.`;
 
-    const response = await aiService.generateContent(prompt);
-    response.split('\n').forEach(line => {
-      const match = line.match(/^[-\s]*([^:]+):\s*(.+)$/);
-      if (match) {
-        aiDescriptions[match[1].trim()] = match[2].trim();
-      }
-    });
-  } catch (error) {
-    console.log('⚠️ AI descriptions unavailable, using defaults');
+      const response = await aiService.generateContent(prompt);
+      response.split('\n').forEach(line => {
+        const match = line.match(/^[-\s]*([^:]+):\s*(.+)$/);
+        if (match) {
+          aiDescriptions[match[1].trim()] = match[2].trim();
+        }
+      });
+
+      // Cache the descriptions
+      incremental.cacheDescription('top-level', JSON.stringify(aiDescriptions));
+    } catch (error) {
+      console.log('⚠️ AI descriptions unavailable, using defaults');
+    }
   }
 
   // Generate markdown content
@@ -444,8 +568,36 @@ Format as "path: description" one per line.`;
   const outputPath = path.join(brainDir, 'directory-structure.md');
   fs.writeFileSync(outputPath, content);
 
+  // Update cache with fresh data
+  const appsCache: { [name: string]: any } = {};
+  for (const [name, data] of Object.entries(metrics.apps)) {
+    appsCache[name] = {
+      ...data,
+      hash: incremental.calculateDirectoryHash(path.join(rootPath, 'apps', name)),
+    };
+  }
+
+  const packagesCache: { [name: string]: any } = {};
+  for (const [name, data] of Object.entries(metrics.packages)) {
+    packagesCache[name] = {
+      ...data,
+      hash: incremental.calculateDirectoryHash(path.join(rootPath, 'packages', name)),
+    };
+  }
+
+  incremental.updateCache({
+    apps: appsCache,
+    packages: packagesCache,
+    groveFeatures: metrics.groveFeatures.map(f => ({
+      ...f,
+      hash: incremental.calculateDirectoryHash(f.path),
+    })),
+  });
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`✅ Generated: ${outputPath}`);
   console.log(`📊 ${metrics.totalFiles} files, ${metrics.totalLines.toLocaleString()} lines`);
+  console.log(`⏱️ Completed in ${elapsed}s ${isIncremental ? '(incremental)' : '(full scan)'}`);
 }
 
 // CLI entry point - ESM compatible
@@ -453,7 +605,27 @@ const isMainModule = import.meta.url === `file://${process.argv[1]}` ||
   process.argv[1]?.endsWith('brain-garden-adapter.ts');
 
 if (isMainModule) {
-  generateBrainGardenStructure().catch(console.error);
+  const args = process.argv.slice(2);
+  const force = args.includes('--force') || args.includes('-f');
+
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+Brain Garden Directory Structure Generator
+
+Usage: pnpm structure:generate [options]
+
+Options:
+  --force, -f    Force full regeneration (ignore cache)
+  --help, -h     Show this help message
+
+Examples:
+  pnpm structure:generate           # Incremental update
+  pnpm structure:generate --force   # Full regeneration
+`);
+    process.exit(0);
+  }
+
+  generateBrainGardenStructure({ force }).catch(console.error);
 }
 
 export { generateBrainGardenStructure, getMonorepoRoot };
